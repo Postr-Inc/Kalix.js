@@ -96,7 +96,16 @@ export var document = {
             },
             toString: () => {
                 return node.element()
-            }
+            },
+            getElementsByTagName: (tagName) => {
+                return node.children.filter((child) => child?.tag === tagName)
+            },
+            getElementsByClassName: (className) => {
+                return node.children.filter((child) => child?.props?.className.includes(className))
+            },
+            getElementsByName: (name) => {
+                return node.children.filter((child) => child?.tag === name)
+            },
         } 
         if(!tree.includes(node)){
             tree.push(node) 
@@ -160,13 +169,13 @@ export var document = {
         return tree.find((child) => child?.id === id)
     },
     getElementsByClassName: (className) => {
-        return tree.filter((child) => child?.props?.className === className)
+        return tree.filter((child) => child?.props?.className.includes(className))
     },
     getElementsByTagName: (tagName) => {
         return tree.filter((child) => child?.tag === tagName)
     },
     getElementsByName: (name) => {
-        return tree.filter((child) => child?.props?.name === name)
+        return tree.filter((child) => child?.tag === name)
     },
     removeChild: (child) => {
         tree = tree.filter((node) => node !== child)
@@ -285,6 +294,16 @@ export function Element(tag, props, ...children){
             children[i].htmlNode = children[i].tag === 'TEXT_ELEMENT' ? document.createTextNode(children[i].props.nodeValue) : document.createElement(children[i].tag)
             children[i].htmlNode.children = children[i].children
             children[i].htmlNode.parentNode = nodeEl
+            children[i].htmlNode.parentNode.children.push(children[i].htmlNode) 
+            children[i].htmlNode.parentNode.innerHTML = children[i].htmlNode.parentNode.children.map((child) =>{
+                if(child.tag === 'TEXT_ELEMENT'){
+                    if(!children[i].htmlNode.parentNode.html.includes(child.props.nodeValue)){
+                        return child.props.nodeValue
+                    }
+                }else{
+                    return child.element()
+                }
+            }).join('')
             children[i].htmlNode.props = children[i].props
             if(children[i].htmlNode.element){
                  children[i].htmlNode.html = children[i].htmlNode.element()
@@ -297,13 +316,7 @@ export function Element(tag, props, ...children){
                 }
             }).join('')
         }
-        if(children[i].tag === 'TEXT_ELEMENT'){
-            nodeEl.appendChild(document.createTextNode(children[i].props.nodeValue))
-        }
-        else{
-            let child = children[i] 
-            nodeEl.appendChild(child.htmlNode)
-        }
+        
       
     }
  
