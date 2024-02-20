@@ -1,30 +1,40 @@
-let tree = []
-
+export let tree = []
+const rewriter = new HTMLRewriter();
 export var document = {
-    createElement: (el) => {
+    createElement: (el) => { 
         let node = {
-            children: [],
-            tag: el,
+            children: el.children || [],
+            tag: el.tag || el,
             props: {}, 
             events: [],
             attributes: {},
             id: '',
+            /**
+             * 
+             * @param {string} el 
+             * @returns {node}
+             */
             querySelector: (el) => {
                 switch(true){
                     case  el.startsWith('.'):
                         return node.children.find((child) => child?.props?.className === el.substring(1))
                     case el.startsWith('#'):
                         return node.children.find((child) => child?.id === el.substring(1))
-                    default:
-                        return node.children.find((child) => child?.tag === el)
+                    default: 
+                        return node.children.find((child) => child?.tag === el) 
                 }
             },
             addEventListener: (type, listener) => {
                 node.events.push({type, listener})
             },
             
-            appendChild: (child) => { 
+            appendChild: (child) => {  
                 node.children.push(child)
+                tree.find((node) => node.children.includes(node))?.children.push(child)
+            },
+            prepend: (child) => {
+                node.children.unshift(child)
+                tree.find((node) => node.children.includes(node))?.children.unshift(child)
             },
             classList: {
                 add: (className) => {
@@ -49,15 +59,19 @@ export var document = {
             },
             remove: () => {
                 node.children = []
+                tree = tree.filter((node) => node !== node)
             },
             style: {}, 
+            /**
+             * @type {string}
+             */
             html: '',
             textContent: '',
             innerHTML: '',
             parseHtml: (html) => {
                 // use htmlRewriter
             },
-            element: () => {
+            element: () => { 
                 let el = `
                 <${node.tag}
                 ${
@@ -65,28 +79,39 @@ export var document = {
                         return `${prop}="${node.props.length > 0 ? node.props[prop] : node.attributes[prop]}"`  
                     }).join(' ')
                 }
-                >${node.children.map((child) =>{
+                >${node.children.map((child) =>{ 
+                    if(!child) return 
                     if(child.tag === 'TEXT_ELEMENT'){
                         return child.props.nodeValue
                     }else{
-                        if(child.children.length > 0){
-                            return Object.keys(child).includes('element') ? child.element() : child.htmlNode.element()
-                        }
+                        return child.element()
                     }
                 }).join('')}
                 ${
-                    node.innerHTML   + node.textContent
+                    node.innerContent ? node.innerContent : ''
                 }
                 </${node.tag}>
                 ` 
                 return el.replace(/\s+/g, ' ').trim()
+            },
+            toString: () => {
+                return node.element()
             }
         } 
         if(!tree.includes(node)){
-            tree.push(node)
+            tree.push(node) 
         }
         
         node['parentNode'] =  tree.find((node) => node.children.includes(node))
+        tree.find((node)=> node === node).html = node.element()
+        node.html = node.element()
+        node.innerHTML = node.children.map((child) =>{
+            if(child.tag === 'TEXT_ELEMENT'){
+                return child.props.nodeValue
+            }else{
+                return child.element()
+            }
+        }).join('')
         return  node
     },
      
@@ -147,9 +172,7 @@ export var document = {
         tree = tree.filter((node) => node !== child)
     },
     toString: () => {
-        return tree.map((node) => {
-            return node.element()
-        }).join('') 
+        return tree.map((node) => node.html).join('')
     },
     jsxTOString: (jsx) => {
         jsx = typeof jsx === 'function' ? jsx() : jsx
@@ -157,8 +180,11 @@ export var document = {
              throw new Error(`document.jsxToString() only accepts a JSX element or function as an argument`)
         }
         let el =  jsx.tag === 'TEXT_ELEMENT' ? document.createTextNode(jsx.props.nodeValue) : document.createElement(jsx.tag)
+        
         for(var i = 0; i < jsx.children.length; i++){
+            jsx.children[i].parentNode = jsx
             el.appendChild(jsx.children[i])
+            tree.find((node) => node.children.includes(node))?.children.push(jsx.children[i])
         }
         return el.element()
     }
@@ -184,7 +210,7 @@ export function Element(tag, props, ...children){
 
     if(typeof tag === 'function'){ 
        return generateJSX(tag, props, children) 
-    } 
+    }  
     let node = {
         tag: tag,
         props: props,
@@ -192,7 +218,7 @@ export function Element(tag, props, ...children){
         _key: props['$$key'],
         events: [],
         staticEl: document.createElement(tag),
-        parentNode: null
+        parent: tree.find((node) => node.children.includes(node))
     }
     for(var i = 0; i < children.length; i++){
       if(typeof children[i] === 'string' || typeof children[i] === 'number'){
@@ -209,8 +235,7 @@ export function Element(tag, props, ...children){
           }
       }
     }  
-    let nodeEl = node.tag === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(node.tag)
-    node.staticEl = nodeEl 
+    let nodeEl = node.tag === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(node.tag) 
     for(var key in props){
        if(key.toLowerCase().includes('on')){
          nodeEl.addEventListener(key.substring(2).toLowerCase(), props[key])   
@@ -247,24 +272,49 @@ export function Element(tag, props, ...children){
 
        }
     }
-    node['htmlNode'] = nodeEl
+    node = nodeEl
       
      
     for(var i = 0; i < children.length; i++){
       
         if(children[i]){
             children[i].parentNode = {tag: tag, props: props, children: children}
+        } 
+        tree.find((node) => node.children.includes(node))?.children.push(children[i]) 
+        if(!children[i].htmlNode){
+            children[i].htmlNode = children[i].tag === 'TEXT_ELEMENT' ? document.createTextNode(children[i].props.nodeValue) : document.createElement(children[i].tag)
+            children[i].htmlNode.children = children[i].children
+            children[i].htmlNode.parentNode = nodeEl
+            children[i].htmlNode.props = children[i].props
+            if(children[i].htmlNode.element){
+                 children[i].htmlNode.html = children[i].htmlNode.element()
+            }
+            children[i].htmlNode.innerHTML = children[i].children.map((child) =>{
+                if(child.tag === 'TEXT_ELEMENT'){
+                    return child.props.nodeValue
+                }else{
+                    return child.element()
+                }
+            }).join('')
         }
-        nodeEl.appendChild(children[i].tag === 'TEXT_ELEMENT' ? document.createTextNode(children[i].props.nodeValue) : children[i].staticEl) 
+        if(children[i].tag === 'TEXT_ELEMENT'){
+            nodeEl.appendChild(document.createTextNode(children[i].props.nodeValue))
+        }
+        else{
+            let child = children[i] 
+            nodeEl.appendChild(child.htmlNode)
+        }
       
     }
  
+    
    
-    return node;
+    return node 
 }
   
 
 export default {
     document,
-    Element
+    Element,
+    tree
 }
