@@ -105,15 +105,11 @@ class HTMLElement {
                     return this.props.nodeValue;
                 }
                 let props = "";
-                for (let key in this.props) {
-                    if (key !== 'nodeValue' && key !== 'children' && !key === 'style') {
-                        console.log('key', key)
-                        props += ` ${key}="${this.props[key]}"`;
+                for (let key in this.props) { 
+                    if (key !== 'style') {
+                        props += `${key}="${this.props[key]}" `
                     }
-                    if (key === 'style' && !typeof this.props[key] === 'string') {
-                        this.style = this.props[key]
-                    }
-                }
+                } 
                 let children = this.children
                     .map((child) => {
                         return child.toString();
@@ -126,7 +122,11 @@ class HTMLElement {
 
 
                 if (this.attributes && Object.keys(this.attributes).length > 0) {
-                    props += ` ${Object.keys(this.attributes).map((key) => `${key}="${this.attributes[key]}"`).join(" ")}`
+                    props += ` ${Object.keys(this.attributes).map((key) =>{ 
+                        if(key !== 'style' && !props.includes(key)){
+                            return `${key}="${this.attributes[key]}"`
+                        }
+                    }).join(' ')}`
                 }
                 if (this.style && Object.keys(this.style).length > 0) {
                     props += ` style="${handleStyles(this.style, this)}"`
@@ -436,12 +436,15 @@ function handleStyles(styles, nodeEl) {
  * @param  {...any} children 
  * @returns 
  */
-export function Element(tag, props, ...children) {
+export function Element(tag, props = {}, ...children) {
+    if(props === null){
+        props = {}
+    } 
     let node = {
         tagName: tag,
-        props: props,
+        props: props || {},
         children: children,
-        _key: props["$$key"],
+        _key: null,
         events: [],
         parentNode: null,
     };
@@ -467,8 +470,8 @@ export function Element(tag, props, ...children) {
             children[i] = {
                 tagName: "TEXT_ELEMENT",
                 props: { nodeValue: children[i] },
-                _key: props["$$key"],
-                parentNode: { tagName: tag, props: props, children: children, _key: props["$$key"] },
+                _key: null,
+                parentNode: { tagName: tag, props: props, children: children, _key: null},
                 children: [],
             };
             children[i] = new HTMLTEXTNode(children[i].props.nodeValue);
