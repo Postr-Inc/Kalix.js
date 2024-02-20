@@ -161,8 +161,9 @@ class HTMLElement {
      * @param {HTMLElement|HTMLTEXTNode} child 
      * @returns 
      */
-    appendChild(child) {
-        console.log('child', child)
+    appendChild(child) {  
+        this.outerHTML = this.toString("outerHTML");
+        this.innerHTML = this.toString("innerHTML");
         if (!this.children.includes(child)) {
             this.children.push(child);
             this.outerHTML = this.toString("outerHTML");
@@ -297,7 +298,7 @@ export class Document {
          * @description - Returns the <body> or <frameset> node of the current document.
          * @type {HTMLElement}
          */
-        this.body = null;
+        this.body = new HTMLElement("body", {}, []);
         /**
          * @description - Document.documentElement returns the Element that is the root element of the document
          * @type {HTMLElement}
