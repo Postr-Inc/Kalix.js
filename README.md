@@ -20,6 +20,6 @@ console.log(parsed.body.firstChild.querySelectorAll('*'))
 
 # Use Cases
 
-SSR - Kalix is used in vaderjs to build pages on the server, before sending to client which gives users better load times!
-HTTP Response parsing - Kalix could be used to turn http responses into a tree
-Crawling - you can crawl websites using Kalix to grab their contents.
+1. SSR - Kalix is used in vaderjs to build pages on the server, before sending to client which gives users better load times!
+2. HTTP Response parsing - Kalix could be used to turn http responses into a tree
+3. Crawling - you can crawl websites using Kalix to grab their contents.
