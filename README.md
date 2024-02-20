@@ -13,4 +13,7 @@ var App = function () {
 
 let dom = document.createElement(App())
 console.log(dom.html) // <div >Hello World<span >Hello World0 </span> </div>
+const parser = new DOMParser() 
+const parsed = parser.parseFromString('<div id="div1">Hello<span class="too">Hello</span></div>')
+console.log(parsed.body.firstChild.querySelectorAll('*'))
 ```
