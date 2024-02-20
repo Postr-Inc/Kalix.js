@@ -4,7 +4,7 @@ A fast vader jsx transformer and dom handler
 #Usage
 
 ```js
-import { document, Element, tree} from './document/index.js'
+import { document, Element, tree} from 'Kalix/document'
 
 var App = function () {
     let [state, setState] = useState('state', App, [])
