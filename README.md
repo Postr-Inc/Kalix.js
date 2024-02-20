@@ -1,5 +1,5 @@
 # Kalix.js
-A fast vader jsx transformer and dom handler
+A fast vader jsx transformer and dom handler for bun.js
 
 #Usage
 
