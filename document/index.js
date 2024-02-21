@@ -106,7 +106,7 @@ class HTMLElement {
                 }
                 let props = "";
                 for (let key in this.props) { 
-                    if (key !== 'style') {
+                    if (key !== 'style' && key !== 'ref'){
                         props += `${key}="${this.props[key]}" `
                     }
                 } 
@@ -123,7 +123,7 @@ class HTMLElement {
 
                 if (this.attributes && Object.keys(this.attributes).length > 0) {
                     props += ` ${Object.keys(this.attributes).map((key) =>{ 
-                        if(key !== 'style' && !props.includes(key)){
+                        if(key !== 'style' && !props.includes(key) && key !== 'ref'){
                             return `${key}="${this.attributes[key]}"`
                         }
                     }).join(' ')}`
@@ -187,7 +187,9 @@ class HTMLElement {
      * @returns  {HTMLElement}
      */
     removeChild(child) {
-        this.children = this.children.filter((c) => c !== child);
+        this.children = this.children.filter((c) => c !== child); 
+        this.innerHTML = this.toString("innerHTML");
+        this.outerHTML = this.toString("outerHTML");
         return this;
     }
 
@@ -332,8 +334,7 @@ export class Document {
         let { tagName, props, children } = nodeData;
         let node = new HTMLElement(tagName, props, children);
         children = children.filter((child) => child !== null || child !== undefined)
-        node.children = children.map((child) => {
-
+        node.children = children.map((child) => { 
             if (child.tagName === "TEXT_ELEMENT") {
                 return new HTMLTEXTNode(child);
             }
