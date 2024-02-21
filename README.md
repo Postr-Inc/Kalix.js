@@ -5,10 +5,10 @@ A fast vader jsx transformer and dom handler for bun.js
 
 ```js
 import { document, Element, DOMParser} from 'Kalix/document'
-
+// Vaderjs function
 var App = function () {
     let [state, setState] = useState('state', App, [])
-    return Element('div', null, 'Hello World', Element('span', null, 'Hello World', state.length))
+    return Element('div', null, 'Hello World', Element('span', null, 'Hello World', state().length))
 }
 
 let dom = document.createElement(App())
