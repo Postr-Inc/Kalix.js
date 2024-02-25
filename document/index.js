@@ -54,7 +54,7 @@ export class DOMParser {
     }
 
 }
-class HTMLTEXTNode {
+export class HTMLTextNode {
     constructor(text) {
         this.nodeValue = text;
         this.nodeType = 3;
@@ -71,24 +71,26 @@ class HTMLTEXTNode {
         return this;
     }
 }
-class HTMLElement {
+export class HTMLElement {
     constructor(tagName, props, children) {
         this.tagName = tagName;
         this.props = props;
         this.children = children;
         this.outerHTML = this.toString("outerHTML");
         this.innerHTML = this.toString("innerHTML");
+        this.textContent = this.toString("innerText");
         /**
-         * @type {HTMLElement | HTMLTEXTNode}
+         * @type {HTMLElement | HTMLTextNode}
          */
         this.firstChild = this.children[0];
-        this.style = {};
+        this.style =  props?.style || {};  
+        
         this.attributes = props;
         this.events = [];
         /**
          * @type {string | null}
          */
-        this.id = null;
+        this.id =  props?.id || null;
         this.nodeType = 1;
         this.accessKey = null;
     }
@@ -106,7 +108,7 @@ class HTMLElement {
                 }
                 let props = "";
                 for (let key in this.props) { 
-                    if (key !== 'style' && key !== 'ref'){
+                    if (key !== 'style' && key !== 'ref' && !key.startsWith('on')) {
                         props += `${key}="${this.props[key]}" `
                     }
                 } 
@@ -123,7 +125,7 @@ class HTMLElement {
 
                 if (this.attributes && Object.keys(this.attributes).length > 0) {
                     props += ` ${Object.keys(this.attributes).map((key) =>{ 
-                        if(key !== 'style' && !props.includes(key) && key !== 'ref'){
+                        if(key !== 'style' && !props.includes(key) && key !== 'ref' && !key.startsWith('on')){
                             return `${key}="${this.attributes[key]}"`
                         }
                     }).join(' ')}`
@@ -133,19 +135,26 @@ class HTMLElement {
                 }
                 if (this.props?.id) {
                     this.id = this.props.id
-                }
+                } 
                 return `<${this.tagName} ${props}>${children}</${this.tagName}>`;
             case "innerHTML":
-                this.innerHTML = this.children
-                    .map((child) => {
-                        return child.toString();
+                return this.children.map((child) => {
+                    child.toString("outerHTML");
+                    child.toString("innerHTML");
+                    child.toString("innerText");
+                    return child.toString("outerHTML");
+                }).join("");
+            case "innerText":
+                let string = ''
+                this.children
+                    .map((child) => { 
+                        if(child instanceof HTMLTextNode){
+                           string += child.nodeValue
+                        } 
                     })
-                    .join("");
-                return this.children
-                    .map((child) => {
-                        return child.toString();
-                    })
-                    .join("");
+                    .join(""); 
+                return string;
+             
             case "innerText":
                 return this.children
                     .map((child) => {
@@ -158,12 +167,13 @@ class HTMLElement {
     }
     /**
      * @description - Appends a node as the last child of a node.
-     * @param {HTMLElement|HTMLTEXTNode} child 
+     * @param {HTMLElement|HTMLTextNode} child 
      * @returns 
      */
     appendChild(child) {  
         this.outerHTML = this.toString("outerHTML");
         this.innerHTML = this.toString("innerHTML");
+        this.textContent = this.toString("innerText");
         if (!this.children.includes(child)) {
             this.children.push(child);
             this.outerHTML = this.toString("outerHTML");
@@ -171,16 +181,72 @@ class HTMLElement {
         }
         return this;
     }
+      /**
+     * @description - set the content of the element
+     * @param {string} content
+     * @returns {HTMLElement}
+     */
+     setContent(content) {
+        let textNode = new HTMLTextNode(content);
+        this.children = [textNode]; 
+        this.outerHTML = this.toString("outerHTML");
+        this.innerHTML = this.toString("innerHTML");
+        return this;
+     }
+
+    /**
+     * @description - Appends a set of Node objects or DOMString objects after the last child of the ParentNode.
+     * @param  {...any} children 
+     * @returns  {HTMLElement}
+     */
+    append(...children) {
+        this.outerHTML = this.toString("outerHTML");
+        this.innerHTML = this.toString("innerHTML");
+        this.textContent = this.toString("innerText");
+        this.children = [...this.children, ...children];
+        return this;
+    }
     /**
      * @description - Inserts a set of Node objects or DOMString objects after the last child of the ParentNode.
-     * @param {HTMLElement|HTMLTEXTNode} child
+     * @param {HTMLElement | HTMLTextNode} node1 
+     * @param {HTMLElement | HTMLTextNode} node2
+     * @returns  {HTMLElement}
+     */
+    insertBefore(node1, node2) {
+        this.outerHTML = this.toString("outerHTML");
+        this.innerHTML = this.toString("innerHTML");
+        this.textContent = this.toString("innerText");
+        this.children = this.children.map((child) => {
+            if (child === node2) {
+                return node1;
+            }
+            return child;
+        });
+        return this;
+    }
+    /**
+     * @description - Inserts a set of Node objects or DOMString objects after the last child of the ParentNode.
+     * @param {HTMLElement|HTMLTextNode} child
      * @returns  {HTMLElement}
      */
     prepend(child) {
+       this.outerHTML = this.toString("outerHTML");
+        this.innerHTML = this.toString("innerHTML");
+        this.textContent = this.toString("innerText");
         this.children = [child, ...this.children];
         return this;
     }
 
+    /**
+     * 
+     */
+    remove() {
+        this.outerHTML = "";
+        this.innerHTML = "";
+        this.textContent = "";
+        this.children = [];
+        return this;
+    }
     /**
      * @description - Removes a child node from the DOM  
      * @param {Object} child 
@@ -190,13 +256,44 @@ class HTMLElement {
         this.children = this.children.filter((c) => c !== child); 
         this.innerHTML = this.toString("innerHTML");
         this.outerHTML = this.toString("outerHTML");
+        this.textContent = this.toString("innerText");
+        return this;
+    }
+
+    /**
+     * @description - Search for a specific attribute and returns the value of the attribute.
+     * @param {string} name 
+     * @returns  {string | null}
+     */
+    getAttribute(name) { 
+        switch (true){
+            case Object.keys(this.props).includes(name):
+                return this.props[name]
+            case Object.keys(this.attributes).includes(name):
+                return this.attributes[name]
+        }
+        return null;
+    }
+    /**
+     * @description - Sets the value of an attribute on the specified element. If the attribute already exists, the value is updated; otherwise a new attribute is added with the specified name and value.
+     * @param {string} name 
+     * @param {string} value 
+     * @returns {HTMLElement} 
+     */
+
+    setAttribute(name, value) { 
+        this.props[name] = value;  
+        this.attributes[name] = value;
+        this.outerHTML = this.toString("outerHTML");
+        this.innerHTML = this.toString("innerHTML");
+        this.textContent = this.toString("innerText");
         return this;
     }
 
     /**
      * @method classList 
      * @description - add, remove, toggle, or check the presence of a class in the class attribute of an element
-     * @returns {(add: (className: string) => HTMLElement | HTMLTEXTNode | null, remove: (className: string) => HTMLElement | HTMLTEXTNode | null, toggle: (className: string) => HTMLElement | HTMLTEXTNode | null, contains: (className: string) => boolean) => HTMLElement | HTMLTEXTNode | null}
+     * @returns {(add: (className: string) => HTMLElement | HTMLTextNode | null, remove: (className: string) => HTMLElement | HTMLTextNode | null, toggle: (className: string) => HTMLElement | HTMLTextNode | null, contains: (className: string) => boolean) => HTMLElement | HTMLTextNode | null}
      */
     classList = {
         add: (className) => {
@@ -228,23 +325,35 @@ class HTMLElement {
     querySelector(selector) {
         switch (true) {
             case selector.startsWith("."):
-                return this.children.find((child) => {
+            this.innerHTML = this.toString("innerHTML");
+            this.outerHTML = this.toString("outerHTML");
+            this.textContent = this.toString("innerText");    
+            return this.children.find((child) => {
                     child.outerHTML = child.toString();
                     return child.props.className.includes(selector.substring(1));
                 });
             case selector.startsWith("#"):
-                return this.children.find((child) => {
+                this.innerHTML = this.toString("innerHTML");
+                this.outerHTML = this.toString("outerHTML");
+                this.textContent = this.toString("innerText");        
+            return this.children.find((child) => {
                     child.outerHTML = child.toString();
                     return child.props.id === selector.substring(1);
                 });
             default:
-                let child = this.children.find((child) => {
+                this.innerHTML = this.toString("innerHTML");
+                this.outerHTML = this.toString("outerHTML");
+                this.textContent = this.toString("innerText");        
+            let child = this.children.find((child) => {
                     child.outerHTML = child.toString();
                     return child.tagName === selector;
                 }
                 );
                 if (!child) {
                     // check if children of children have the selector
+                    this.innerHTML = this.toString("innerHTML");
+                    this.outerHTML = this.toString("outerHTML");
+                    this.textContent = this.toString("innerText");    
                     this.children.forEach((c) => {
                         if (c.children) {
                             child = c.children.find((child) => {
@@ -263,7 +372,7 @@ class HTMLElement {
     /** 
      * @description - Returns a list of elements with the given tag name. The subtree underneath the specified element is searched, excluding the element itself.
      * @param {string} selector 
-     * @returns {Array<HTMLElement | HTMLTEXTNode>}
+     * @returns {Array<HTMLElement | HTMLTextNode>}
      */
     querySelectorAll(selector) {
         switch (true) {
@@ -306,7 +415,14 @@ export class Document {
          * @type {HTMLElement}
          * @returns {{outerHTML: string, innerHTML: string}}
          */
-        this.documentElement = null;
+        this.documentElement =  new HTMLElement("html", {}, [this.body]);
+
+
+        /**
+         * @description - Document.head returns the <head> element of the current document.
+         *  @type {HTMLElement}
+         */
+        this.head = new HTMLElement("head", {}, []);
 
         /**
          * @description -  Returns the first child of a node, or the first child that is an element, and null if there are no child elements.
@@ -317,10 +433,10 @@ export class Document {
     /**
      * @description - Creates a new Text node.  This method can be used to escape HTML characters.
      * @param {sring} text 
-     * @returns  {HTMLTEXTNode}
+     * @returns  {HTMLTextNode}
      */
     createTextNode(text) {
-        return new HTMLTEXTNode(text);
+        return new HTMLTextNode(text);
     }
     /**
      * @description -  Creates a new element with the provided tag name or node object.
@@ -336,7 +452,7 @@ export class Document {
         children = children.filter((child) => child !== null || child !== undefined)
         node.children = children.map((child) => { 
             if (child.tagName === "TEXT_ELEMENT") {
-                return new HTMLTEXTNode(child);
+                return new HTMLTextNode(child);
             }
             if (child instanceof HTMLElement) {
                 return child;
@@ -346,10 +462,12 @@ export class Document {
         return node;
     }
 
+   
+
     /**
      * @description - Returns the first element that is a descendant of the element on which it is invoked that matches the specified group of selectors.
      * @param {string} selector 
-     * @returns {HTMLElement | HTMLTEXTNode | null}
+     * @returns {HTMLElement | HTMLTextNode | null}
      */
     querySelector(selector) {
         switch (true) {
@@ -386,7 +504,7 @@ export class Document {
     /**
      * @description - Returns a list of elements with the given tag name. The subtree underneath the specified element is searched, excluding the element itself.
      * @param {string} selector 
-     * @returns {Array<HTMLElement | HTMLTEXTNode>}
+     * @returns {Array<HTMLElement | HTMLTextNode>}
      */
     querySelectorAll(selector) {
         switch (true) {
@@ -412,7 +530,12 @@ export class Document {
      */
 
     toString() {
-        return this.tree.map((child) => child.toString()).join("");
+        this.tree.push(this.documentElement)
+        this.tree.push(this.head)
+        this.tree.push(this.body)
+        return this.tree.map((child) => {
+            return child.toString();
+        }).join("");
 
     }
 
@@ -421,10 +544,11 @@ export class Document {
 function handleStyles(styles, nodeEl) {
     let style = "";
     for (let key in styles) {
+        let lower = key.replace(/([A-Z])/g, (g) => `-${g[0].toLowerCase()}`);
         if (typeof styles[key] === "object") {
             style += handleStyles(styles[key], nodeEl);
         }
-        style += `${key}:${styles[key]};`;
+        style += `${lower}:${styles[key]};`;
     }
     return style;
 }
@@ -438,6 +562,10 @@ function handleStyles(styles, nodeEl) {
  * @returns 
  */
 export function Element(tag, props = {}, ...children) {
+    if(typeof tag === 'function'){
+        let el = tag(props, children)
+        return el
+    }
     if(props === null){
         props = {}
     } 
@@ -446,8 +574,45 @@ export function Element(tag, props = {}, ...children) {
         props: props || {},
         children: children,
         _key: null,
+        innerHTML: "",
+        outerHTML: "",
+        textContent: "",
         events: [],
         parentNode: null,
+        appendChild: (child) => { 
+            children.push(child);
+            return node;
+        },
+        querySelector: (selector) => {
+             switch (true) {
+                case selector.startsWith("."):
+                    return children.find((child) => {
+                        child.outerHTML = child.toString();
+                        return child.props.className.includes(selector.substring(1));
+                    });
+                case selector.startsWith("#"):
+                    return children.find((child) => {
+                        return child.props.id === selector.substring(1);
+                    });
+                default:
+                    let child = children.find((child) => { 
+                        return child.tagName === selector;
+                    })
+                    if (!child) {
+                        // check if children of children have the selector
+                        children.forEach((c) => {
+                            if (c.children) {
+                                child = c.children.find((child) => {
+                                    child.outerHTML = child.toString();
+                                    return child.tagName === selector;
+                                }
+                                );
+                            }
+                        })
+                    }
+                    return child;
+             }
+        },
     };
 
     if (props?.children) {
@@ -464,9 +629,12 @@ export function Element(tag, props = {}, ...children) {
 
         node.children = children
         delete props.children
-    }
-
+    } 
     for (var i = 0; i < children.length; i++) {
+        if(typeof children[i] === 'undefined'){
+            delete children[i]
+            continue;
+        }
         if (typeof children[i] === "string" || typeof children[i] === "number") {
             children[i] = {
                 tagName: "TEXT_ELEMENT",
@@ -475,21 +643,23 @@ export function Element(tag, props = {}, ...children) {
                 parentNode: { tagName: tag, props: props, children: children, _key: null},
                 children: [],
             };
-            children[i] = new HTMLTEXTNode(children[i].props.nodeValue);
+            children[i] = new HTMLTextNode(children[i].props.nodeValue);
         } else {
             if (children[i]) {
                 children[i].parentNode = { tagName: tag, props: props, children: children };
-            }
+            } 
 
             children[i] = new HTMLElement(children[i].tagName, children[i].props, children[i].children)
         }
     }
 
-    return node;
+    return new HTMLElement(tag, props, children);
 }
 
 export default {
     Document,
     Element,
     DOMParser,
+    HTMLTextNode,
+    HTMLElement
 };
